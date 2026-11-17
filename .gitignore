@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 产物
+out/
+*.mp4
+*.m4s
+*.part*.mp4
+*.meta.json
+*_wm_box.png
+*_nowm.mp4
+*.npy
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
