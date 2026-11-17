@@ -21,6 +21,7 @@ description: >
 scripts/bili_fetch.py        # WBI 签名下载（durl 720P / dash 1080P+，多分P，音轨保留）
 scripts/bili_cookie_grab.py  # 从本机 Chrome/Edge 扒 SESSDATA（上 1080P+ 用）
 scripts/wm_dewatermark.py    # 自动定位 + 字形级 inpaint 去水印
+scripts/contact_sheet.py     # 全片缩略图网格：一眼判断有没有水印、水印是否固定
 ```
 
 依赖：`requests`、`opencv-python`、`numpy`、`pycryptodome`、`imageio-ffmpeg`（自带 ffmpeg 二进制，
@@ -51,8 +52,11 @@ python $S/wm_dewatermark.py IN.mp4 --rect 15,15,217,59 # 自动不准时手动�
      比自己拼 dash 省事。
    - 登录（`--sessdata`）→ `fnval=4048&fourk=1` → dash，视频/音频分别下，ffmpeg `-c copy` 合流，
      画质名映射见脚本内 `QN_NAME`。codec 优先 avc（播放器/剪辑软件兼容性最好）。
-4. **确认水印是否内嵌**：`ffmpeg -ss 5 -i IN.mp4 -frames:v 1 f.png` 看一眼。B站投稿原片通常**没有**
-   平台水印；出现 logo 说明是 UP 主自己压进去的（本例 `Cyjay08 + bilibili` 就属于这种）。
+4. **先判断到底有没有水印**：`python scripts/contact_sheet.py IN.mp4 sheet.jpg` 出一张全片缩略图
+   网格（一张图看完 2 分钟片子）。B站投稿原片**通常没有**平台水印；画面里出现 logo 才说明是 UP 主
+   压进去的（BV1Trs363ExF 的 `Cyjay08 + bilibili` 属于这种）。
+   **`--preview` 报 auto-detection failed 时，先怀疑本来就没水印**——BV1z2iPBPEkE 全片干净，
+   直接交付原片即可，不要硬塞 `--rect` 去糊一块本来干净的画面。
 5. **去水印** → 见下节。6. **验收** → 见验收清单。
 
 ### 画质决策表
@@ -99,6 +103,8 @@ python $S/bili_fetch.py BVxxx --sessdata "<SESSDATA>" -o ./out
 ### 已知边界
 
 - 只处理**固定位置**水印。移动/漂移水印需要逐帧检测，现脚本不覆盖。
+- **不是所有视频都有水印**：`--preview` 报 `auto-detection failed` 时先看 contact sheet 缩略图，
+  确认真的干净就跳过处理，别为了"走了流程"去糊一块干净的画面。
 - 水印落在极亮背景（纯白雾/天空）时，检测依赖相对亮度，偶尔会漏 1–2 px 抗锯齿边，加大 `--grow`。
 - 只出现在片头的浮动水印：`ffmpeg -ss` 切段分别处理再 `concat`。
 - 720P 源去水印后仍然是 720P；inpaint 不产生细节，不要期望"变清晰"。

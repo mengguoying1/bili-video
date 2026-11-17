@@ -58,12 +58,16 @@ python scripts/bili_cookie_grab.py     # 自动读本机 Chrome/Edge
 ### 去水印
 
 ```bash
-python scripts/wm_dewatermark.py in.mp4 --preview        # 先看检测对不对
+python scripts/contact_sheet.py in.mp4 sheet.jpg         # 先一眼看全片：到底有没有水印
+python scripts/wm_dewatermark.py in.mp4 --preview        # 再确认检测对不对
 python scripts/wm_dewatermark.py in.mp4                  # -> in_nowm.mp4
 python scripts/wm_dewatermark.py in.mp4 --rect 15,15,217,59   # 自动不准时手动给框
 ```
 
 `--preview` 会打印自动检测到的 bbox，并导出 mask 图和检测框特写，先确认再跑全片。
+
+`--preview` 报 `auto-detection failed` 时，先怀疑**这片子本来就没有水印**（B站投稿原片绝大多数是干净的），
+用 contact sheet 确认后直接交付原片，不要硬给 `--rect` 把干净画面糊掉。
 
 ## 去水印原理
 
