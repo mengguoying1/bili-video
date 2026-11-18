@@ -97,6 +97,37 @@ python scripts/wm_dewatermark.py in.mp4 --rect 15,15,217,59   # 自动不准时�
 - 水印只在片头出现时：`ffmpeg -ss` 切段分别处理再 `concat`。
 - 源是 720P 就是 720P，inpaint 不产生细节。
 
+## YouTube
+
+B站不能用 `yt-dlp`，YouTube 反过来只能用 `yt-dlp`。两个坑：
+
+**bot 检测** —— 直接下会报 `Sign in to confirm you're not a bot`，换 player client 即可：
+
+```bash
+# tv_embedded：全量 1080p60，最全
+yt-dlp --extractor-args "youtube:player_client=tv_embedded" \
+  -f "299+bestaudio[ext=m4a]/299+bestaudio/18" \
+  --merge-output-format mp4 -o "%(title).80B__%(id)s.%(ext)s" "URL"
+```
+
+| client | 结果 |
+|---|---|
+| `tv_embedded` | 全量 1080p60 + 多语言原始音轨 |
+| `android_vr` / `android` | 只给 format 18（360p 合流），保底 |
+| `ios` / `mweb` / `web_embedded` | `Requested format is not available` |
+
+**ffmpeg 不在 PATH** —— `imageio-ffmpeg` 的二进制叫 `ffmpeg-win-x86_64-v7.1.exe`，`yt-dlp` 只认
+`ffmpeg(.exe)`。复制成 `ffmpeg.exe` 到包装目录，用 `--ffmpeg-location` 指过去：
+
+```bash
+FFBIN="$LOCALAPPDATA/Temp/ffbin"; mkdir -p "$FFBIN"
+cp "$(python -c 'import imageio_ffmpeg;print(imageio_ffmpeg.get_ffmpeg_exe())')" "$FFBIN/ffmpeg.exe"
+yt-dlp --ffmpeg-location "$FFBIN" ...
+```
+
+`%(title).80B` 按字节截断，中文/葡语标题会切在半截，下完记得改名。
+YouTube 平台不加片头水印，只有 UP 主自己压的 logo 才需要跑去水印。
+
 ## 作为 agent skill 使用
 
 把本仓库放进 agent 的技能目录即可被自动发现（Claude Code / DSH / 任何读 `SKILL.md` 的宿主）：

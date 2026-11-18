@@ -7,6 +7,8 @@ description: >
   remove watermark from video / dewatermark / 视频去水印 / 无水印版本.
   Also use for 随便给我下个 B站视频, 这些视频批量下, 分P下载, or when a bilibili URL is
   pasted with any download / cleanup intent.
+  YouTube 支线：youtube.com / youtu.be 链接要下载时也走这里（见文末「YouTube」一节，
+  含 bot 检测绕过与 ffmpeg 兜底）。
   含三个脚本：WBI 签名下载（绕开 yt-dlp 的 412）、浏览器 cookie 提取（上 1080P+）、
   静态水印字形级 inpaint 去除（不留矩形补丁痕迹）。
 ---
@@ -145,3 +147,38 @@ out/
 - 水印：左上 `Cyjay08 + bilibili`，约 214×60 @ (18,18)，全片固定 → 内嵌（非播放器叠加）。
 - 自动检测输出 bbox `(15,15,217,59)`，字形 mask 3507 px，扩后 8060 px（0.87% 画面）。
 - 结果：1094 帧、`crf 16 preset slow`、音轨保留，水印区干净无接缝。
+
+## YouTube 支线（和 B站正好相反：必须用 yt-dlp）
+
+B站不能用 yt-dlp，YouTube 反过来只能用 yt-dlp。踩过两个坑：
+
+**坑 1：`Sign in to confirm you're not a bot`**
+默认 client 直接下会报这个（`-F` 列格式却正常）。用 `--extractor-args` 换 player_client：
+
+| client | 结果 |
+|---|---|
+| `tv_embedded` | ✅ 全量 1080p60（299 avc / 303 vp9 / 399 av1）+ 多语言原始音轨 |
+| `android_vr` / `android` | ⚠️ 只给 format 18（360p 合流 mp4），保底 |
+| `ios` / `mweb` / `web_embedded` | ❌ `Requested format is not available` |
+
+**坑 2：ffmpeg 不在 PATH**
+`imageio-ffmpeg` 的二进制叫 `ffmpeg-win-x86_64-v7.1.exe`，yt-dlp 只认 `ffmpeg(.exe)`。
+复制成 `ffmpeg.exe` 到包装目录，再用 `--ffmpeg-location` 指过去：
+
+```powershell
+$ffbin = "$env:LOCALAPPDATA\Temp\ffbin"
+New-Item -ItemType Directory -Force $ffbin | Out-Null
+Copy-Item (python -c "import imageio_ffmpeg;print(imageio_ffmpeg.get_ffmpeg_exe())") "$ffbin\ffmpeg.exe" -Force
+
+yt-dlp --ffmpeg-location $ffbin `
+  --extractor-args "youtube:player_client=tv_embedded" `
+  -f "299+bestaudio[ext=m4a]/299+bestaudio/18" `
+  --merge-output-format mp4 `
+  -o "OUT\%(title).80B__%(id)s.%(ext)s" "https://www.youtube.com/watch?v=ID"
+```
+
+- `%(title).80B` 按**字节**截断，中文/葡语标题会被切在一半，下完手动改名。
+- 先 `--simulate -f ...` 试哪个 client 能出目标格式，比闷头下载快。
+- 多语言配音视频（dubbed）要指定音轨：格式列表里 `251-2` 这种 `-N` 后缀就是音轨号。
+- YouTube 平台本身不加片头水印；UP 主自己压的 logo 才需要走上面的 inpaint —— 先跑
+  `contact_sheet.py` 看一眼再决定，别默认每片都要处理。
